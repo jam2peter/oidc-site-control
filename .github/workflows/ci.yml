@@ -1,0 +1,21 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m py_compile scripts/site_control.py
+      - run: python3 -m json.tool site-control.example.json >/dev/null
+      - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Sanitization scan
+        run: |
+          set -euo pipefail
+          ! grep -RInE 'JamPeter-Web-Infrastructure|jampeter\.com\.br|192\.168\.|X-JamPeter-' --exclude-dir=.git --exclude=ci.yml .
+          ! grep -RInE '(ghp_|github_pat_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' --exclude-dir=.git --exclude=ci.yml .
