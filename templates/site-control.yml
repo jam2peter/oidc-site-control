@@ -1,0 +1,71 @@
+name: OIDC Site Control
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  site-control:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.comment.author_association == 'OWNER' &&
+      startsWith(github.event.comment.body, '/site ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CONFIG: ${{ vars.SITE_CONTROL_CONFIG || 'site-control.json' }}
+      COMMENT: ${{ github.event.comment.body }}
+      ISSUE: ${{ github.event.issue.number }}
+      SOURCE_REPO: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Execute allowlisted command
+        id: run
+        shell: bash
+        run: |
+          set -euo pipefail
+          command="${COMMENT#/site }"
+          read -r action arg1 arg2 extra <<< "$command"
+          test -z "${extra:-}" || { echo "Unexpected argument"; exit 2; }
+
+          case "$action" in
+            health)
+              test -z "${arg1:-}" || exit 2
+              python3 scripts/site_control.py --config "$CONFIG" health | tee result.json
+              ;;
+            deploy.inspect)
+              test -n "${arg1:-}" && test -z "${arg2:-}" || exit 2
+              python3 scripts/site_control.py --config "$CONFIG" inspect --target "$arg1" | tee result.json
+              ;;
+            deploy.stage)
+              test -n "${arg1:-}" && test -n "${arg2:-}" || exit 2
+              python3 scripts/site_control.py --config "$CONFIG" stage --source "$arg1" --target "$arg2" | tee result.json
+              ;;
+            deploy.apply)
+              [[ "${arg1:-}" =~ ^[1-9][0-9]*$ ]] && test -z "${arg2:-}" || exit 2
+              python3 scripts/site_control.py --config "$CONFIG" apply --job-id "$arg1" | tee result.json
+              ;;
+            deploy.rollback)
+              [[ "${arg1:-}" =~ ^[1-9][0-9]*$ ]] && test -z "${arg2:-}" || exit 2
+              python3 scripts/site_control.py --config "$CONFIG" rollback --deployment-id "$arg1" | tee result.json
+              ;;
+            *) echo "Unsupported action"; exit 2 ;;
+          esac
+
+      - name: Record result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE" --repo "$SOURCE_REPO" --body "OIDC_SITE_CONTROL=${{ job.status }}
+          RUN_ID=${{ github.run_id }}
+          AUTH=GITHUB_OIDC
+          SECRET_EXPOSED=NO"
