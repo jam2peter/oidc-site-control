@@ -1,0 +1,10 @@
+{
+  "endpoint": "https://deploy.example.com/control/",
+  "audience": "https://deploy.example.com/control/",
+  "oidc_header": "X-Site-Control-GitHub-OIDC",
+  "allowed_roots": ["apps", "projects"],
+  "limits": {
+    "max_files": 2000,
+    "max_bytes": 67108864
+  }
+}
