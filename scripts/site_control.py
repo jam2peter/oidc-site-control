@@ -12,7 +12,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, NoReturn
 
 FORMAT="OIDC_SITE_CONTROL_BUNDLE_V1"
 MARKER=".site-control-release.json"
