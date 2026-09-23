@@ -11,6 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: JamPeter Quality Gate
+        uses: jam2peter/quality-gate@v0
+        with:
+          config: .jampeter/quality-gate.toml
+          install-tools: ruff
       - run: python3 -m py_compile scripts/site_control.py
       - run: python3 -m json.tool site-control.example.json >/dev/null
       - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
